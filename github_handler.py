@@ -86,19 +86,17 @@ def update_repo_files(repo, files_to_commit, round_num):
 
 def enable_github_pages(repo):
     """Enables GitHub Pages for the repository and returns the URL."""
-    # This is the new, correct way to enable GitHub Pages via the API
     try:
         source = {"source": {"branch": repo.default_branch, "path": "/"}}
-        # We use the internal _requester to send a PUT request to the /pages endpoint
-        repo._requester.requestJsonAndCheck("PUT", repo.url + "/pages", input=source)
-        print("GitHub Pages enabled. It may take a minute to deploy.")
+        # Use POST to CREATE the Pages site for the first time.
+        headers = {'Accept': 'application/vnd.github.v3+json'} # Good practice to include headers
+        repo._requester.requestJsonAndCheck("POST", repo.url + "/pages", input=source, headers=headers)
+        print("GitHub Pages site created. It may take a minute to deploy.")
     except GithubException as e:
-        # The error message can vary slightly, so we check for common phrases
-        message = str(e.data.get('message', '')).lower()
-        if "already has a github pages site" in message or "has a pages site" in message:
+        # A 409 Conflict status means the site already exists.
+        if e.status == 409:
             print("GitHub Pages is already enabled.")
         else:
-            # If it's a different error, we re-raise it to see what's wrong
             print(f"An unexpected error occurred while enabling GitHub Pages: {e}")
             raise e
 
