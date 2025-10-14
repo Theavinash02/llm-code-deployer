@@ -6,7 +6,7 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def generate_app_code(brief, existing_code=None):
     """Generates application code (HTML/JS/CSS) based on a brief using an LLM."""
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     # Base prompt for the LLM
     prompt = f"""
