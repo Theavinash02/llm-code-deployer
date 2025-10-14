@@ -1,6 +1,6 @@
 import os
 import time
-from github import Github, GithubException, BadCredentialsException
+from github import Github, GithubException, BadCredentialsException, InputGitTreeElement
 
 # Initialize the GitHub client using the token from environment variables
 g = Github(os.getenv("GITHUB_TOKEN"))
@@ -54,46 +54,51 @@ def get_file_content(repo, file_path):
 
 def update_repo_files(repo, files_to_commit, round_num):
     """Creates or updates files in the repo and returns the commit SHA."""
-    commit_message = f"feat: Round {round_num} - initial project setup"
+    commit_message = f"feat: Round {round_num} project setup"
     if round_num > 1:
-        commit_message = f"feat: Round {round_num} - revision based on new brief"
+        commit_message = f"feat: Round {round_num} revision based on new brief"
 
-    # Check if the repo is empty to decide commit strategy
+    # For Round 2+, update files using the Git Trees API
     try:
+        # Check if repo is not empty to get the latest commit
         repo.get_contents("/")
-        # If not empty, we need to get the latest commit to build on top of
-        master_ref = repo.get_git_ref(f'heads/{repo.default_branch}')
-        master_sha = master_ref.object.sha
-        base_tree = repo.get_git_tree(master_sha)
+        
+        main_ref = repo.get_git_ref(f'heads/{repo.default_branch}')
+        latest_commit = repo.get_git_commit(main_ref.object.sha)
+        base_tree = repo.get_git_tree(latest_commit.sha)
 
+        # *** THIS IS THE CORRECTED PART ***
+        # Create a list of InputGitTreeElement objects
         element_list = [
-            {'path': path, 'mode': '100644', 'type': 'blob', 'content': content}
+            InputGitTreeElement(path, '100644', 'blob', content=content)
             for path, content in files_to_commit.items()
         ]
         
+        # Create the new tree
         tree = repo.create_git_tree(element_list, base_tree)
-        parent = repo.get_git_commit(master_sha)
+        parent = latest_commit
         commit = repo.create_git_commit(commit_message, tree, [parent])
-        master_ref.edit(commit.sha)
+        main_ref.edit(commit.sha)
+        
+        final_commit_sha = commit.sha
 
-    except GithubException: # Repo is empty
+    except GithubException: # Repo is empty (Round 1)
         for path, content in files_to_commit.items():
-            repo.create_file(path, f"init: create {path}", content, branch=repo.default_branch)
-        commit = repo.get_commits().get_page(0)[0] # Get the latest commit
+            repo.create_file(path, f"init: create {path}", content)
+        commit = repo.get_commits().get_page(0)[0]
+        final_commit_sha = commit.sha
 
-    print(f"Successfully committed changes. SHA: {commit.sha}")
-    return commit.sha
+    print(f"Successfully committed changes. SHA: {final_commit_sha}")
+    return final_commit_sha
 
 def enable_github_pages(repo):
     """Enables GitHub Pages for the repository and returns the URL."""
     try:
         source = {"source": {"branch": repo.default_branch, "path": "/"}}
-        # Use POST to CREATE the Pages site for the first time.
-        headers = {'Accept': 'application/vnd.github.v3+json'} # Good practice to include headers
+        headers = {'Accept': 'application/vnd.github.v3+json'}
         repo._requester.requestJsonAndCheck("POST", repo.url + "/pages", input=source, headers=headers)
         print("GitHub Pages site created. It may take a minute to deploy.")
     except GithubException as e:
-        # A 409 Conflict status means the site already exists.
         if e.status == 409:
             print("GitHub Pages is already enabled.")
         else:
@@ -107,7 +112,6 @@ def deploy_project(task_id, files, round_num):
     """Full workflow: create repo, push files, enable pages, and return details."""
     repo = create_or_get_repo(task_id)
 
-    # Add MIT license with the user's name
     files['LICENSE'] = MIT_LICENSE.replace("Your Name", github_user.name or github_user.login)
 
     commit_sha = update_repo_files(repo, files, round_num)
