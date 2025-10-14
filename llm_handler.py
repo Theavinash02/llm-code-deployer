@@ -9,31 +9,35 @@ def generate_app_code(brief, existing_code=None):
     model = genai.GenerativeModel('gemini-2.5-flash') # Or your working model
     
     # --- THIS IS THE UPDATED PROMPT ---
+    # --- THIS IS THE NEW, HYPER-DETAILED PROMPT ---
     prompt = f"""
-    You are an expert web developer. Your task is to build a complete, single-page web application in a single index.html file.
+    You are an expert full stack developer creating a single, self-contained index.html file based on the task provided.
+    Analyze the user's brief with extreme care and follow these rules precisely.
 
-    **CRITICAL RULES:**
-    1.  **Element IDs:** Pay extremely close attention to `id` attributes mentioned in the brief (e.g., `#github-created-at`). The generated HTML elements MUST have these exact IDs for the evaluation to pass.
-    2.  **API Calls:** If the brief requires fetching data from an API (like the GitHub API), you MUST write the complete JavaScript `fetch` call and the logic to handle the response.
-    3.  **Content Display:** Ensure the data retrieved from any API call is correctly placed into the specified HTML elements.
-    4.  **Self-Contained:** All HTML, CSS, and JavaScript must be in a single `index.html` file.
+    **CRITICAL DEVELOPMENT RULES:**
+    1.  **HTML Structure:** If the brief mentions specific HTML element IDs (e.g., `#markdown-output`, `#markdown-tabs`), you MUST create those exact elements with those exact `id` attributes. This is non-negotiable.
+    2.  **External Libraries:** If the brief mentions loading external libraries from a CDN (e.g., 'marked', 'highlight.js', 'bootstrap'), you MUST include a `<script>` or `<link>` tag for EACH ONE in the `<head>` section. Do not miss any.
+    3.  **JavaScript Logic:** You must write all necessary JavaScript to fulfill the brief's requirements. If it requires converting Markdown, create the logic. If it requires creating tabs, write the event listeners for the buttons.
+    4.  **Self-Contained Code:** All HTML, CSS, and JavaScript must be in one file. Do not use `fetch()` for local files like 'input.md'; embed any provided data directly into a JavaScript variable.
 
-    **BRIEF:** "{brief}"
+    **USER BRIEF:**
+    ---
+    {brief}
+    ---
     """
 
     if existing_code:
         prompt += f"""
-        This is a revision request. Modify the following existing code based on the new brief and all the critical rules above:
+        This is a revision request. Update the following code based on the new USER BRIEF and all the CRITICAL DEVELOPMENT RULES above.
         --- EXISTING CODE ---
         {existing_code}
         --- END OF EXISTING CODE ---
-
-        Return only the complete, updated index.html file content. Do not add any explanations.
+        Return only the complete, updated index.html file content.
         """
     else:
-        prompt += "Return only the complete index.html file content. Do not include any other text or explanations."
+        prompt += "Return only the complete index.html file content. Do not add explanations."
 
-    print("Sending detailed prompt to LLM to generate app code...")
+    print("Sending hyper-detailed prompt to LLM...")
     response = model.generate_content(prompt)
     
     generated_text = response.text.strip()
