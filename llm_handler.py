@@ -10,18 +10,20 @@ def generate_app_code(brief, existing_code=None):
     
     # --- THIS IS THE UPDATED PROMPT ---
     prompt = f"""
-    You are an expert web developer building a single-page web application in one index.html file.
-    Use inline CSS and inline JavaScript. Do not use external files unless explicitly asked for (e.g., CDN links).
+    You are an expert web developer. Your task is to build a complete, single-page web application in a single index.html file.
 
-    IMPORTANT: If the brief mentions attachments (like .csv or .json data), you MUST embed the content of those attachments directly into a JavaScript variable within the <script> tag. Do NOT generate code that uses fetch() to load local files, as they will not exist on the server.
+    **CRITICAL RULES:**
+    1.  **Element IDs:** Pay extremely close attention to `id` attributes mentioned in the brief (e.g., `#github-created-at`). The generated HTML elements MUST have these exact IDs for the evaluation to pass.
+    2.  **API Calls:** If the brief requires fetching data from an API (like the GitHub API), you MUST write the complete JavaScript `fetch` call and the logic to handle the response.
+    3.  **Content Display:** Ensure the data retrieved from any API call is correctly placed into the specified HTML elements.
+    4.  **Self-Contained:** All HTML, CSS, and JavaScript must be in a single `index.html` file.
 
-    BRIEF: "{brief}"
+    **BRIEF:** "{brief}"
     """
 
-    # If it's a revision request, add the existing code for context
     if existing_code:
         prompt += f"""
-        This is a revision request. Modify the following existing code based on the new brief:
+        This is a revision request. Modify the following existing code based on the new brief and all the critical rules above:
         --- EXISTING CODE ---
         {existing_code}
         --- END OF EXISTING CODE ---
@@ -31,10 +33,9 @@ def generate_app_code(brief, existing_code=None):
     else:
         prompt += "Return only the complete index.html file content. Do not include any other text or explanations."
 
-    print("Sending prompt to LLM to generate app code...")
+    print("Sending detailed prompt to LLM to generate app code...")
     response = model.generate_content(prompt)
     
-    # Clean the LLM response to ensure only code is returned
     generated_text = response.text.strip()
     if '```html' in generated_text:
         generated_text = generated_text.split('```html')[1].split('```')[0]
