@@ -6,12 +6,14 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def generate_app_code(brief, existing_code=None):
     """Generates application code (HTML/JS/CSS) based on a brief using an LLM."""
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash') # Or your working model
     
-    # Base prompt for the LLM
+    # --- THIS IS THE UPDATED PROMPT ---
     prompt = f"""
-    You are an expert web developer. Your task is to build a single-page web application in a single index.html file.
-    Use inline CSS and inline JavaScript if needed. Do not use external files unless explicitly asked for (e.g., CDN links).
+    You are an expert web developer building a single-page web application in one index.html file.
+    Use inline CSS and inline JavaScript. Do not use external files unless explicitly asked for (e.g., CDN links).
+
+    IMPORTANT: If the brief mentions attachments (like .csv or .json data), you MUST embed the content of those attachments directly into a JavaScript variable within the <script> tag. Do NOT generate code that uses fetch() to load local files, as they will not exist on the server.
 
     BRIEF: "{brief}"
     """
