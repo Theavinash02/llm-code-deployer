@@ -1,6 +1,6 @@
 import os
 import time
-from github import Github, GithubException
+from github import Github, GithubException, BadCredentialsException
 
 # Initialize the GitHub client using the token from environment variables
 g = Github(os.getenv("GITHUB_TOKEN"))
@@ -86,14 +86,20 @@ def update_repo_files(repo, files_to_commit, round_num):
 
 def enable_github_pages(repo):
     """Enables GitHub Pages for the repository and returns the URL."""
+    # This is the new, correct way to enable GitHub Pages via the API
     try:
-        repo.create_pages_site(source={'branch': repo.default_branch, 'path': '/'})
+        source = {"source": {"branch": repo.default_branch, "path": "/"}}
+        # We use the internal _requester to send a PUT request to the /pages endpoint
+        repo._requester.requestJsonAndCheck("PUT", repo.url + "/pages", input=source)
         print("GitHub Pages enabled. It may take a minute to deploy.")
     except GithubException as e:
-        if "already has a GitHub Pages site" in str(e.data.get('message', '')):
+        # The error message can vary slightly, so we check for common phrases
+        message = str(e.data.get('message', '')).lower()
+        if "already has a github pages site" in message or "has a pages site" in message:
             print("GitHub Pages is already enabled.")
         else:
-            print(f"Error enabling GitHub Pages: {e}")
+            # If it's a different error, we re-raise it to see what's wrong
+            print(f"An unexpected error occurred while enabling GitHub Pages: {e}")
             raise e
 
     pages_url = f"https://{github_user.login}.github.io/{repo.name}/"
