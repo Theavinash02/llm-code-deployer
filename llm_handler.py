@@ -6,7 +6,7 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def generate_app_code(brief, existing_code=None):
     """Generates application code (HTML/JS/CSS) based on a brief using an LLM."""
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     # Base prompt for the LLM
     prompt = f"""
@@ -42,7 +42,7 @@ def generate_app_code(brief, existing_code=None):
 
 def generate_readme(brief, code):
     """Generates a professional README.md file content."""
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
     You are a technical writer. Create a professional README.md for a GitHub repository.
