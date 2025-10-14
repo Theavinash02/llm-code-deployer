@@ -42,7 +42,7 @@ def generate_app_code(brief, existing_code=None):
 
 def generate_readme(brief, code):
     """Generates a professional README.md file content."""
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f"""
     You are a technical writer. Create a professional README.md for a GitHub repository.
