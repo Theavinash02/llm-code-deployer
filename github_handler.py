@@ -54,42 +54,41 @@ def get_file_content(repo, file_path):
 
 def update_repo_files(repo, files_to_commit, round_num):
     """Creates or updates files in the repo and returns the commit SHA."""
-    commit_message = f"feat: Round {round_num} project setup"
+    commit_message = f"feat: Round {round_num} - project setup"
     if round_num > 1:
-        commit_message = f"feat: Round {round_num} revision based on new brief"
+        commit_message = f"feat: Round {round_num} - revision based on new brief"
 
-    # For Round 2+, update files using the Git Trees API
+    # Get the main branch reference
+    main_ref = repo.get_git_ref(f'heads/{repo.default_branch}')
+
+    # Get the latest commit to build on top of
     try:
-        # Check if repo is not empty to get the latest commit
-        repo.get_contents("/")
-        
-        main_ref = repo.get_git_ref(f'heads/{repo.default_branch}')
         latest_commit = repo.get_git_commit(main_ref.object.sha)
-        base_tree = repo.get_git_tree(latest_commit.sha)
+        base_tree = latest_commit.tree
+    except GithubException: # This happens if the repo is brand new and empty
+        latest_commit = None
+        base_tree = None
 
-        # *** THIS IS THE CORRECTED PART ***
-        # Create a list of InputGitTreeElement objects
-        element_list = [
-            InputGitTreeElement(path, '100644', 'blob', content=content)
-            for path, content in files_to_commit.items()
-        ]
-        
-        # Create the new tree
-        tree = repo.create_git_tree(element_list, base_tree)
-        parent = latest_commit
-        commit = repo.create_git_commit(commit_message, tree, [parent])
-        main_ref.edit(commit.sha)
-        
-        final_commit_sha = commit.sha
+    # Create blobs for all files
+    blobs = {path: repo.create_git_blob(content, "utf-8") for path, content in files_to_commit.items()}
 
-    except GithubException: # Repo is empty (Round 1)
-        for path, content in files_to_commit.items():
-            repo.create_file(path, f"init: create {path}", content)
-        commit = repo.get_commits().get_page(0)[0]
-        final_commit_sha = commit.sha
+    tree_elements = [
+        InputGitTreeElement(path=path, mode='100644', type='blob', sha=blob.sha)
+        for path, blob in blobs.items()
+    ]
 
-    print(f"Successfully committed changes. SHA: {final_commit_sha}")
-    return final_commit_sha
+    # Create a new tree
+    new_tree = repo.create_git_tree(tree_elements, base_tree)
+
+    # Create the commit
+    parents = [latest_commit] if latest_commit else []
+    commit = repo.create_git_commit(commit_message, new_tree, parents)
+
+    # Update the branch to point to the new commit
+    main_ref.edit(commit.sha)
+
+    print(f"Successfully committed changes. SHA: {commit.sha}")
+    return commit.sha
 
 def enable_github_pages(repo):
     """Enables GitHub Pages for the repository and returns the URL."""
